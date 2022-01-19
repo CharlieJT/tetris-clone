@@ -1,12 +1,6 @@
+/* eslint-disable array-callback-return */
 /* eslint-disable no-loop-func */
-import React, {
-	useState,
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	MutableRefObject,
-} from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { GiSpeaker, GiSpeakerOff } from "react-icons/gi";
 import "./App.css";
 import useInterval from "./hooks/useInterval";
@@ -96,7 +90,6 @@ const App = (): JSX.Element => {
 				(_, j) => j > 1 && j < gridSize[0] && gameArr.push([i, j, 0]),
 			),
 	);
-	let ThemeTuneRef: any = useRef(null);
 	const [gameActive, setGameActive] = useState<boolean>(false);
 	const [gameInitialState, setGameInitialState] = useState<boolean>(false);
 	const [points, setPoints] = useState<number>(0);
@@ -282,19 +275,22 @@ const App = (): JSX.Element => {
 		[filterGenerator, positionHandler],
 	);
 
-	const lineAnimationHandler = (lines: number[]): void => {
-		const lineArray: GridCoordsProps = [];
-		lines.map((line: number): void => {
-			for (let i = 2; i < gridSize[0]; i++) {
-				lineArray.push([line, i]);
-			}
-		});
+	const lineAnimationHandler = useCallback(
+		(lines: number[]): void => {
+			const lineArray: GridCoordsProps = [];
+			lines.map((line: number): void => {
+				for (let i = 2; i < gridSize[0]; i++) {
+					lineArray.push([line, i]);
+				}
+			});
 
-		setLineAnimation(lineArray);
-		setTimeout((): void => {
-			setLineAnimation([]);
-		}, 500);
-	};
+			setLineAnimation(lineArray);
+			setTimeout((): void => {
+				setLineAnimation([]);
+			}, 500);
+		},
+		[gridSize],
+	);
 
 	const lineCheckHandler = useCallback(
 		(gameArray): number => {
@@ -354,7 +350,7 @@ const App = (): JSX.Element => {
 			setGameArray(currentGameArray);
 			return lineCount;
 		},
-		[gridSize, level],
+		[TetrisLine, TetrisPop, gridSize, level, lineAnimationHandler],
 	);
 
 	const setShapeHandler = useCallback(
@@ -457,35 +453,35 @@ const App = (): JSX.Element => {
 		[gridSize, guidePosition, tetrominoSetHandler],
 	);
 
-	const topOffsetHandler = (
-		position: TetrisCoordProps,
-		offsets: OffsetsProps,
-	) => {
-		const { lineCount, newGameArray } = setShapeHandler(position, offsets);
-		const checkGameOver = gameOverCheckHandler(newGameArray);
-		let offsetCount: number = 0;
-		const generatedTetromino = generatedTetrominoHandler(
-			[1 - tetrominoes[`${nextTetromino}`].orientations[0][0].topOffset, 5],
-			tetrominoes[`${nextTetromino}`].orientations[0][0],
-		);
-		let condition = false;
-		do {
-			condition = false;
-			newGameArray.map((block: TetrisCoordProps): void[] =>
-				generatedTetromino.map((el: TetrisCoordProps): any => {
-					if (
-						block[0] === el[0] - offsetCount + 1 &&
-						block[1] === el[1] &&
-						typeof block[2] === "string"
-					) {
-						condition = true;
-					}
-				}),
+	const topOffsetHandler = useCallback(
+		(position: TetrisCoordProps, offsets: OffsetsProps) => {
+			const { lineCount, newGameArray } = setShapeHandler(position, offsets);
+			const checkGameOver = gameOverCheckHandler(newGameArray);
+			let offsetCount: number = 0;
+			const generatedTetromino = generatedTetrominoHandler(
+				[1 - tetrominoes[`${nextTetromino}`].orientations[0][0].topOffset, 5],
+				tetrominoes[`${nextTetromino}`].orientations[0][0],
 			);
-			offsetCount = offsetCount + 1;
-		} while (condition);
-		return { offsetCount, checkGameOver, lineCount, newGameArray };
-	};
+			let condition = false;
+			do {
+				condition = false;
+				newGameArray.map((block: TetrisCoordProps): void[] =>
+					generatedTetromino.map((el: TetrisCoordProps): any => {
+						if (
+							block[0] === el[0] - offsetCount + 1 &&
+							block[1] === el[1] &&
+							typeof block[2] === "string"
+						) {
+							condition = true;
+						}
+					}),
+				);
+				offsetCount = offsetCount + 1;
+			} while (condition);
+			return { offsetCount, checkGameOver, lineCount, newGameArray };
+		},
+		[nextTetromino, setShapeHandler],
+	);
 
 	const checkHandler = useCallback(
 		(
@@ -573,11 +569,13 @@ const App = (): JSX.Element => {
 		},
 		[
 			tetrominoSetHandler,
-			gridSize,
-			setShapeHandler,
-			initialPosition,
 			gameArray,
+			gridSize,
+			TetrisSet,
+			topOffsetHandler,
+			TetrisGameOver,
 			setGuiderHandler,
+			TetrisMove,
 		],
 	);
 
@@ -704,12 +702,13 @@ const App = (): JSX.Element => {
 			flipValue,
 			tetrominoSetHandler,
 			randomTetromino,
-			gameArray,
 			position,
+			gameArray,
 			setGuiderHandler,
 			checkHandler,
 			nextTetromino,
 			offsets,
+			TetrisFlip,
 		],
 	);
 
@@ -793,14 +792,9 @@ const App = (): JSX.Element => {
 				(): false | React.ReactElement =>
 					musicActive &&
 					gameActive && (
-						<ReactHowler
-							src={TetrisTheme}
-							loop={true}
-							playing={true}
-							ref={(ref: any): any => (ThemeTuneRef = ref)}
-						/>
+						<ReactHowler src={TetrisTheme} loop={true} playing={true} />
 					),
-				[musicActive, gameActive],
+				[musicActive, gameActive, TetrisTheme],
 			)}
 			<TetrisLayout>
 				<TetrisGrid gridSize={gridSize} gridWidth={gridWidth}>
@@ -814,14 +808,14 @@ const App = (): JSX.Element => {
 							gameInitialState &&
 							!gameActive &&
 							!gameOver && <Modal text="Paused" />,
-						[gameActive, gameInitialState],
+						[gameActive, gameInitialState, gameOver],
 					)}
 					{useMemo(
 						(): false | React.ReactElement =>
 							!gameInitialState &&
 							!gameActive &&
 							!gameOver && <Modal text="Press 'Start Game' to play" initial />,
-						[gameActive, gameInitialState],
+						[gameActive, gameInitialState, gameOver],
 					)}
 					{useMemo(
 						(): void =>
@@ -852,7 +846,7 @@ const App = (): JSX.Element => {
 											),
 									),
 							),
-						[position, randomTetromino, flipValue, gameInitialState],
+						[gameInitialState, gameOver, randomTetromino, flipValue, position],
 					)}
 					{useMemo(
 						(): React.ReactElement[] =>
@@ -1010,7 +1004,7 @@ const App = (): JSX.Element => {
 												),
 										),
 								),
-							[nextTetromino, gameActive, gameInitialState],
+							[gameInitialState, nextTetromino, nextGridSize],
 						)}
 					</NextTetrisGrid>
 					<DisplayContainerStyles>
