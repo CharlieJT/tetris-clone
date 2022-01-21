@@ -886,7 +886,7 @@ const App = (): JSX.Element => {
 					}
 				}
 			}
-			if (!disableX && Math.round((dy / dt) * 100) < 5) {
+			if (!disableX && Math.round((dy / dt) * 100) < 1) {
 				if (touchStartingPosX > touchMovePositionX) {
 					setDisableY(true);
 				}
@@ -948,7 +948,7 @@ const App = (): JSX.Element => {
 		if (gameActive) {
 			const { ArrowUp, ArrowDown } = KeyboardProps;
 			let tetrominoToSet: boolean;
-			if (moveTouchSpeed > 20) {
+			if (moveTouchSpeed > 10) {
 				const { count } = setGuiderHandler(
 					offsets,
 					position,
@@ -1003,7 +1003,7 @@ const App = (): JSX.Element => {
 	};
 
 	return (
-		<>
+		<div style={{ touchAction: "none" }}>
 			{useMemo(
 				(): false | React.ReactElement =>
 					!gameOver && (
@@ -1015,14 +1015,13 @@ const App = (): JSX.Element => {
 					),
 				[gameOver, TetrisTheme, musicActive, gameActive],
 			)}
-			<TetrisLayout windowWidth={windowWidth}>
-				<div
-					ref={gameGridSize}
-					onTouchStart={e => touchStartHandler(e)}
-					onTouchMove={e => touchMoveHandler(e)}
-					onTouchEnd={() => touchEndHandler()}
-					style={{ touchAction: "none" }}
-				>
+			<TetrisLayout
+				windowWidth={windowWidth}
+				onTouchStart={e => touchStartHandler(e)}
+				onTouchMove={e => touchMoveHandler(e)}
+				onTouchEnd={() => touchEndHandler()}
+			>
+				<div ref={gameGridSize}>
 					<TetrisGrid
 						gridSize={gridSize}
 						gridWidth={gridWidth}
@@ -1292,7 +1291,7 @@ const App = (): JSX.Element => {
 					</ButtonStyles>
 				)}
 			</ButtonContainerStyles>
-		</>
+		</div>
 	);
 };
 
