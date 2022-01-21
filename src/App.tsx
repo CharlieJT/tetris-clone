@@ -97,13 +97,17 @@ const App = (): JSX.Element => {
 				(_, j) => j > 1 && j < gridSize[0] && gameArr.push([i, j, 0]),
 			),
 	);
-	const gameGrid: any = useRef(null);
+	const gameGrid: React.MutableRefObject<null> = useRef(null);
 	const gameGridSize: any = useRect(gameGrid);
 	const [gameActive, setGameActive] = useState<boolean>(false);
 	const [gameInitialState, setGameInitialState] = useState<boolean>(false);
 	const [tapped, setTapped] = useState<boolean>(true);
 	const [disableX, setDisableX] = useState<boolean>(false);
 	const [disableY, setDisableY] = useState<boolean>(false);
+	const [timestamp, setTimestamp] = useState<number>(0);
+	const [timestampSetter, setTimestampSetter] = useState<number>(0);
+	const [positionYMoved, setPositionYMoved] = useState<number>(0);
+	const [moveTouchSpeed, setTouchMoveSpeed] = useState<number>(0);
 	const [windowWidth, setWindowWidth] = useState<number>(
 		window.innerWidth || 0,
 	);
@@ -142,10 +146,17 @@ const App = (): JSX.Element => {
 		initialPosition[1],
 	]);
 
-	const [guidePosition, setGuidePosition] = useState<any>(
+	const [guidePosition, setGuidePosition] = useState<TetrisCoordProps[]>(
 		offsets.shape
 			.map(
-				(row: any, i: number): GridCoordsProps =>
+				(
+					row: {
+						map: (
+							arg0: (el: number, j: number) => false | (string | number)[],
+						) => GridCoordsProps;
+					},
+					i: number,
+				): GridCoordsProps =>
 					row.map((el: number, j: number): false | (string | number)[] =>
 						el !== 0
 							? [
@@ -175,7 +186,11 @@ const App = (): JSX.Element => {
 
 	const uniqueCoordsHandler = (
 		items: GridCoordsProps,
-		key: any,
+		key: {
+			(separator?: string | undefined): string;
+			(separator?: string | undefined): string;
+			apply?: any;
+		},
 	): GridCoordsProps => {
 		let set: any = {};
 		return items.filter((item: TetrisCoordProps) => {
@@ -235,13 +250,17 @@ const App = (): JSX.Element => {
 	const positionHandler = useCallback(
 		(offsets: OffsetsProps, position: TetrisCoordProps) => {
 			const { leftOffset, rightOffset, shape } = offsets;
+			const currentGridSize: TetrisCoordProps = [...gridSize];
 			if (position[1] + leftOffset - 1 < 0) {
 				return [position[0], 1 - leftOffset];
 			} else if (
 				position[1] - rightOffset >
-				gridSize[0] - shape[0].length - 1
+				currentGridSize[0] - shape[0].length - 1
 			) {
-				return [position[0], gridSize[0] - (shape[0].length + 1) + rightOffset];
+				return [
+					position[0],
+					currentGridSize[0] - (shape[0].length + 1) + rightOffset,
+				];
 			} else {
 				return position;
 			}
@@ -256,23 +275,26 @@ const App = (): JSX.Element => {
 			gameArray: GridCoordsProps,
 		): boolean => {
 			const { leftOffset, rightOffset } = offsets;
+			const currentFilterGenerator: any = [...filterGenerator];
 			const updatedPosition = positionHandler(offsets, position);
 			const generatedTetromino = generatedTetrominoHandler(
 				updatedPosition,
 				offsets,
 			);
 			let tetrominoToSet: boolean = false;
-			let newFilterGenerator: any = [...filterGenerator];
+			let newFilterGenerator: any = [...currentFilterGenerator];
 			const filteredArray = [...gameArray].filter(
 				x => typeof x[2] === "string",
 			);
 
-			filteredArray.map((item: any): number => newFilterGenerator.push(item));
+			filteredArray.map((item: TetrisCoordProps): number =>
+				newFilterGenerator.push(item),
+			);
 			newFilterGenerator = uniqueCoordsHandler(newFilterGenerator, [].join);
 			if (
 				newFilterGenerator.sort().join(",") !==
-					filterGenerator.sort().join(",") &&
-				filterGenerator.length !== 0
+					currentFilterGenerator.sort().join(",") &&
+				currentFilterGenerator.length !== 0
 			) {
 				setFilterGenerator(newFilterGenerator);
 			}
@@ -294,13 +316,13 @@ const App = (): JSX.Element => {
 
 	const lineAnimationHandler = useCallback(
 		(lines: number[]): void => {
-			const lineArray: GridCoordsProps = [];
+			let lineArray: GridCoordsProps = [];
+			const currentGridSize: TetrisCoordProps = [...gridSize];
 			lines.map((line: number): void => {
-				for (let i = 2; i < gridSize[0]; i++) {
+				for (let i = 2; i < currentGridSize[0]; i++) {
 					lineArray.push([line, i]);
 				}
 			});
-
 			setLineAnimation(lineArray);
 			setTimeout((): void => {
 				setLineAnimation([]);
@@ -316,15 +338,17 @@ const App = (): JSX.Element => {
 			let currentGameArray: GridCoordsProps = [...gameArray];
 			let lineArray: number[] = [];
 			let lineCount: number = 0;
+			const currentGridSize: number[] = [...gridSize];
+			const currentLevel: number = level;
 			const currentActiveBlocks = gameArray.filter(
 				(coord: TetrominoProps) => typeof coord[2] === "string",
 			);
-			for (let i = 0; i < gridSize[1]; i++) {
+			for (let i = 0; i < currentGridSize[1]; i++) {
 				const rowCount = currentActiveBlocks.reduce(
 					(a: number, v: TetrisCoordProps) => (v[0] === i ? a + 1 : a),
 					0,
 				);
-				if (rowCount === gridSize[0] - 2) {
+				if (rowCount === currentGridSize[0] - 2) {
 					lineArray.push(i);
 					foundLine = true;
 				}
@@ -356,9 +380,9 @@ const App = (): JSX.Element => {
 			if (foundLine) {
 				setPoints(
 					(points: number): number =>
-						points + gamePoints[lineCount - 1] * (level + 1),
+						points + gamePoints[lineCount - 1] * (currentLevel + 1),
 				);
-				setIntervalValue((1 / 60) * framesPerGridCell[level] * 1000);
+				setIntervalValue((1 / 60) * framesPerGridCell[currentLevel] * 1000);
 				setLines((lines: number): number => {
 					setLevel(Math.floor((lines + lineCount) / 10));
 					return lines + lineCount;
@@ -377,6 +401,7 @@ const App = (): JSX.Element => {
 		): { lineCount: number; newGameArray: GridCoordsProps } => {
 			let newGameArray: any = [...gameArray];
 			let arrayIndex: number;
+			const currentRandomTetromino: string = randomTetromino;
 			const { leftOffset, rightOffset } = offsets;
 			const generatedTetromino = generatedTetrominoHandler(position, offsets);
 			generatedTetromino.map((row: TetrisCoordProps): void => {
@@ -391,7 +416,7 @@ const App = (): JSX.Element => {
 				const updatedArrayVal = [
 					row[0] - leftOffset,
 					row[1] - rightOffset,
-					randomTetromino,
+					currentRandomTetromino,
 				];
 				newGameArray[arrayIndex] = updatedArrayVal;
 			});
@@ -425,12 +450,13 @@ const App = (): JSX.Element => {
 			const { ArrowLeft, ArrowRight } = KeyboardProps;
 			const generatedTetromino = generatedTetrominoHandler(position, offsets);
 			const updatedGuideArray: GridCoordsProps = [];
-			const gridSizing: TetrisCoordProps = [...gridSize];
+			const currentGridSize: TetrisCoordProps = [...gridSize];
 			let tetrominoToSet: boolean;
 			let count: number = lineCount;
 			let condition: boolean =
-				position[0] + count + shape[0].length === gridSizing[1] + bottomOffset;
-			while (!condition && count < gridSizing[1]) {
+				position[0] + count + shape[0].length ===
+				currentGridSize[1] + bottomOffset;
+			while (!condition && count < currentGridSize[1]) {
 				tetrominoToSet = tetrominoSetHandler(
 					offsets,
 					[position[0] + count + 1, position[1]],
@@ -438,14 +464,15 @@ const App = (): JSX.Element => {
 				);
 				condition =
 					position[0] + count + shape[0].length + 1 ===
-						gridSizing[1] + bottomOffset || tetrominoToSet;
+						currentGridSize[1] + bottomOffset || tetrominoToSet;
 				count = count + 1;
 			}
 			generatedTetromino.map((block: TetrisCoordProps, i: number): number => {
 				let currentGuidePosition: any[] = [...guidePosition];
 				return updatedGuideArray.push(
 					(position[1] + leftOffset - 1 < 0 && keyPressed === ArrowLeft) ||
-						(position[1] - rightOffset > gridSize[0] - shape[0].length - 1 &&
+						(position[1] - rightOffset >
+							currentGridSize[0] - shape[0].length - 1 &&
 							keyPressed === ArrowRight)
 						? currentGuidePosition[i]
 						: [
@@ -455,7 +482,7 @@ const App = (): JSX.Element => {
 									  (shape[0].length === 4 && topOffset === 2 ? 2 : 1) -
 									  rightOffset
 									: position[1] - rightOffset >
-									  gridSize[0] - shape[0].length - 1
+									  currentGridSize[0] - shape[0].length - 1
 									? block[1] -
 									  (shape[0].length === 4 && bottomOffset === 2 ? 2 : 1) -
 									  rightOffset
@@ -472,18 +499,23 @@ const App = (): JSX.Element => {
 
 	const topOffsetHandler = useCallback(
 		(position: TetrisCoordProps, offsets: OffsetsProps) => {
+			const currentNextTetromino: string = nextTetromino;
 			const { lineCount, newGameArray } = setShapeHandler(position, offsets);
 			const checkGameOver = gameOverCheckHandler(newGameArray);
 			let offsetCount: number = 0;
 			const generatedTetromino = generatedTetrominoHandler(
-				[1 - tetrominoes[`${nextTetromino}`].orientations[0][0].topOffset, 5],
-				tetrominoes[`${nextTetromino}`].orientations[0][0],
+				[
+					1 -
+						tetrominoes[`${currentNextTetromino}`].orientations[0][0].topOffset,
+					5,
+				],
+				tetrominoes[`${currentNextTetromino}`].orientations[0][0],
 			);
 			let condition = false;
 			do {
 				condition = false;
 				newGameArray.map((block: TetrisCoordProps): void[] =>
-					generatedTetromino.map((el: TetrisCoordProps): any => {
+					generatedTetromino.map((el: TetrisCoordProps): void => {
 						if (
 							block[0] === el[0] - offsetCount + 1 &&
 							block[1] === el[1] &&
@@ -508,18 +540,21 @@ const App = (): JSX.Element => {
 			keyPressed: KeyboardProps,
 			keyPressedTetrominoToSet?: boolean,
 		): void => {
+			const currentGameArray: any = [...gameArray];
+			const currentGridSize: TetrisCoordProps = [...gridSize];
+			const currentLevel: number = level;
 			const { shape, leftOffset, rightOffset, bottomOffset } = offsets;
 			const { ArrowDown, ArrowLeft, ArrowRight } = KeyboardProps;
 			const tetrominoToSet =
 				keyPressed === ArrowDown
-					? tetrominoSetHandler(offsets, position, gameArray)
+					? tetrominoSetHandler(offsets, position, currentGameArray)
 					: false;
 			if (
-				position[0] + shape[0].length === gridSize[1] + bottomOffset ||
+				position[0] + shape[0].length === currentGridSize[1] + bottomOffset ||
 				tetrominoToSet
 			) {
 				soundPlay(TetrisSet);
-				setIntervalValue((1 / 60) * framesPerGridCell[level] * 1000);
+				setIntervalValue((1 / 60) * framesPerGridCell[currentLevel] * 1000);
 				setTapped(true);
 				const { offsetCount, checkGameOver, lineCount, newGameArray } =
 					topOffsetHandler(position, offsets);
@@ -568,12 +603,12 @@ const App = (): JSX.Element => {
 				);
 			} else if (
 				position[1] - rightOffset >
-				gridSize[0] - shape[0].length - 1
+				currentGridSize[0] - shape[0].length - 1
 			) {
 				setPosition(
 					(position: TetrisCoordProps): TetrisCoordProps => [
 						position[0],
-						gridSize[0] - (shape[0].length + 1) + rightOffset,
+						currentGridSize[0] - (shape[0].length + 1) + rightOffset,
 					],
 				);
 			} else {
@@ -593,8 +628,8 @@ const App = (): JSX.Element => {
 			TetrisSet,
 			level,
 			topOffsetHandler,
-			TetrisGameOver,
 			setGuiderHandler,
+			TetrisGameOver,
 			TetrisMove,
 		],
 	);
@@ -602,6 +637,11 @@ const App = (): JSX.Element => {
 	const keyPressedHandler = useCallback(
 		(e: KeyboardEvent): void => {
 			e.preventDefault();
+			const currentRandomTetromino: string = randomTetromino;
+			const currentNextTetromino: string = nextTetromino;
+			const currentOffsets: OffsetsProps = offsets;
+			const currentPosition: TetrisCoordProps = [...position];
+			const currentGameArray: TetrisCoordProps[] = [...gameArray];
 			const { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Space } =
 				KeyboardProps;
 			let tetrominoToSet: boolean;
@@ -610,9 +650,11 @@ const App = (): JSX.Element => {
 					let flipVal: number = flipValue;
 					const updatedFlipValue = flipValue === 3 ? 0 : flipValue + 1;
 					tetrominoToSet = tetrominoSetHandler(
-						tetrominoes[`${randomTetromino}`].orientations[updatedFlipValue][0],
-						position,
-						gameArray,
+						tetrominoes[`${currentRandomTetromino}`].orientations[
+							updatedFlipValue
+						][0],
+						currentPosition,
+						currentGameArray,
 					);
 					if (!tetrominoToSet) {
 						soundPlay(TetrisFlip);
@@ -620,97 +662,97 @@ const App = (): JSX.Element => {
 					}
 					setFlipValue(flipVal);
 					setOffsets(
-						tetrominoes[`${randomTetromino}`].orientations[flipVal][0],
+						tetrominoes[`${currentRandomTetromino}`].orientations[flipVal][0],
 					);
 					setGuiderHandler(
-						tetrominoes[`${randomTetromino}`].orientations[flipVal][0],
-						position,
+						tetrominoes[`${currentRandomTetromino}`].orientations[flipVal][0],
+						currentPosition,
 						ArrowUp,
-						randomTetromino,
-						gameArray,
+						currentRandomTetromino,
+						currentGameArray,
 						0,
 					);
 					checkHandler(
-						tetrominoes[`${randomTetromino}`].orientations[flipVal][0],
-						nextTetromino,
-						position,
+						tetrominoes[`${currentRandomTetromino}`].orientations[flipVal][0],
+						currentNextTetromino,
+						currentPosition,
 						ArrowUp,
 					);
 					break;
 				case ArrowDown:
 					setIntervalValue(50);
 					setGuiderHandler(
-						offsets,
-						[position[0] + 1, position[1]],
+						currentOffsets,
+						[currentPosition[0] + 1, currentPosition[1]],
 						ArrowDown,
-						randomTetromino,
-						gameArray,
+						currentRandomTetromino,
+						currentGameArray,
 						0,
 					);
 					checkHandler(
-						offsets,
-						nextTetromino,
-						[position[0] + 1, position[1]],
+						currentOffsets,
+						currentNextTetromino,
+						[currentPosition[0] + 1, currentPosition[1]],
 						ArrowDown,
 					);
 					break;
 				case ArrowLeft:
 					tetrominoToSet = tetrominoSetHandler(
-						offsets,
-						[position[0], position[1] - 1],
-						gameArray,
+						currentOffsets,
+						[currentPosition[0], currentPosition[1] - 1],
+						currentGameArray,
 					);
 					setGuiderHandler(
-						offsets,
-						[position[0], position[1] - (tetrominoToSet ? 0 : 1)],
+						currentOffsets,
+						[currentPosition[0], currentPosition[1] - (tetrominoToSet ? 0 : 1)],
 						ArrowLeft,
-						randomTetromino,
-						gameArray,
+						currentRandomTetromino,
+						currentGameArray,
 						0,
 					);
 					checkHandler(
-						offsets,
-						nextTetromino,
-						[position[0], position[1] - (tetrominoToSet ? 0 : 1)],
+						currentOffsets,
+						currentNextTetromino,
+						[currentPosition[0], currentPosition[1] - (tetrominoToSet ? 0 : 1)],
 						ArrowLeft,
 						tetrominoToSet,
 					);
 					break;
 				case ArrowRight:
 					tetrominoToSet = tetrominoSetHandler(
-						offsets,
-						[position[0], position[1] + 1],
-						gameArray,
+						currentOffsets,
+						[currentPosition[0], currentPosition[1] + 1],
+						currentGameArray,
 					);
 					setGuiderHandler(
-						offsets,
-						[position[0], position[1] + (tetrominoToSet ? 0 : 1)],
+						currentOffsets,
+						[currentPosition[0], currentPosition[1] + (tetrominoToSet ? 0 : 1)],
 						ArrowRight,
-						randomTetromino,
-						gameArray,
+						currentRandomTetromino,
+						currentGameArray,
 						0,
 					);
 					checkHandler(
-						offsets,
-						nextTetromino,
-						[position[0], position[1] + (tetrominoToSet ? 0 : 1)],
+						currentOffsets,
+						currentNextTetromino,
+						[currentPosition[0], currentPosition[1] + (tetrominoToSet ? 0 : 1)],
 						ArrowRight,
 						tetrominoToSet,
 					);
 					break;
 				case Space:
 					const { count } = setGuiderHandler(
-						offsets,
-						position,
+						currentOffsets,
+						currentPosition,
 						ArrowDown,
-						randomTetromino,
-						gameArray,
+						currentRandomTetromino,
+						currentGameArray,
 						0,
 					);
 					checkHandler(
-						offsets,
-						nextTetromino,
-						[position[0] + count, position[1]],
+						currentOffsets,
+						currentNextTetromino,
+						[currentPosition[0] + count, currentPosition[1]],
 						ArrowDown,
 					);
 					break;
@@ -733,7 +775,9 @@ const App = (): JSX.Element => {
 	);
 
 	useEffect(() => {
-		if (gameActive) {
+		const currentGameActive: boolean = gameActive;
+		if (currentGameActive) {
+			const currentLevel: number = level;
 			document.addEventListener("keydown", keyPressedHandler);
 			document.addEventListener(
 				"keyup",
@@ -747,11 +791,11 @@ const App = (): JSX.Element => {
 					"keyup",
 					(e: KeyboardEvent): false | void =>
 						e.key === KeyboardProps.ArrowDown &&
-						setIntervalValue((1 / 60) * framesPerGridCell[level] * 1000),
+						setIntervalValue((1 / 60) * framesPerGridCell[currentLevel] * 1000),
 				);
 			};
 		}
-	}, [keyPressedHandler, setIntervalValue, intervalVal, level, gameActive]);
+	}, [keyPressedHandler, setIntervalValue, level, gameActive]);
 
 	const getWindowWidth = () => {
 		const windowWidth = window.innerWidth || 0;
@@ -759,11 +803,12 @@ const App = (): JSX.Element => {
 	};
 
 	useEffect(() => {
-		window.addEventListener("resize", () => getWindowWidth());
-		return () => window.removeEventListener("resize", () => getWindowWidth());
+		window.addEventListener("resize", getWindowWidth);
+		return () => window.removeEventListener("resize", getWindowWidth);
 	}, []);
 
-	const startGameHandler = (): void => {
+	const startGameHandler = useCallback((): void => {
+		const currentGridSize: TetrisCoordProps = [...gridSize];
 		const startGameRandomTetromino: string =
 			Object.keys(tetrominoes)[
 				Math.floor(Math.random() * Object.keys(tetrominoes).length)
@@ -776,13 +821,14 @@ const App = (): JSX.Element => {
 			tetrominoes[`${startGameRandomTetromino}`].orientations[0][0];
 		let startGameArr: GridCoordsProps = [];
 		Array.from(
-			{ length: gridSize[1] },
+			{ length: currentGridSize[1] },
 			(_, i) =>
 				i > 1 &&
-				i < gridSize[1] &&
+				i < currentGridSize[1] &&
 				Array.from(
-					{ length: gridSize[1] },
-					(_, j) => j > 1 && j < gridSize[0] && startGameArr.push([i, j, 0]),
+					{ length: currentGridSize[1] },
+					(_, j) =>
+						j > 1 && j < currentGridSize[0] && startGameArr.push([i, j, 0]),
 				),
 		);
 		setGameInitialState(true);
@@ -804,197 +850,262 @@ const App = (): JSX.Element => {
 		]);
 		setGuiderHandler(
 			startOffsets,
-			[position[0] + 1, position[1]],
+			[initialPosition[0] - startOffsets.topOffset, initialPosition[1]],
 			KeyboardProps.ArrowDown,
 			startGameRandomTetromino,
 			startGameArr,
 			0,
 		);
-	};
+	}, [gridSize, initialPosition, intervalVal, setGuiderHandler]);
 
-	const themeTuneHandler = (): void =>
-		setMusicActive((musicActive: boolean): boolean => !musicActive);
-
-	const touchStartHandler = (e: any) => {
-		const touchPositionX = Math.ceil(
-			((e.touches[0].clientX - gameGridSize.current.offsetLeft) /
-				gameGridSize.current.clientWidth) *
-				gridSize[0],
-		);
-		const touchPositionY = Math.ceil(
-			((e.touches[0].clientY - gameGridSize.current.offsetTop) /
-				gameGridSize.current.clientHeight) *
-				gridSize[1],
-		);
-		setTouchStartingPosY(touchPositionY);
-		setTouchStartingPosX(touchPositionX);
-	};
-
-	const [timestamp, setTimestamp] = useState<number>(0);
-	const [timestampSetter, setTimestampSetter] = useState<number>(0);
-	const [positionYMoved, setPositionYMoved] = useState<number>(0);
-	const [moveTouchSpeed, setTouchMoveSpeed] = useState<number>(0);
-
-	const touchMoveHandler = (e: React.TouchEvent<HTMLDivElement>): void => {
-		setTimestamp(Date.now());
-		setPositionYMoved(e.changedTouches[0].clientY);
-		const dt = Date.now() - timestamp;
-		const dy = e.changedTouches[0].clientY - positionYMoved;
-		setTouchMoveSpeed(Math.round((dy / dt) * 100));
-		if (gameActive) {
-			const { ArrowLeft, ArrowRight } = KeyboardProps;
-			let tetrominoToSet: boolean;
-			const touchMovePositionX = Math.ceil(
-				((e.touches[0].clientX - gameGridSize.current.offsetLeft) /
-					gameGridSize.current.clientWidth) *
-					gridSize[0],
+	const touchStartHandler = useCallback(
+		(e: React.TouchEvent<HTMLDivElement>) => {
+			const currentGameGridSize = gameGridSize;
+			const currentGridSize: TetrisCoordProps = gridSize;
+			const touchPositionX = Math.ceil(
+				((e.touches[0].clientX - currentGameGridSize.current.offsetLeft) /
+					currentGameGridSize.current.clientWidth) *
+					currentGridSize[0],
 			);
-			const touchMovePositionY = Math.ceil(
-				((e.touches[0].clientY - gameGridSize.current.offsetTop) /
-					gameGridSize.current.clientHeight) *
-					gridSize[1],
+			const touchPositionY = Math.ceil(
+				((e.touches[0].clientY - currentGameGridSize.current.offsetTop) /
+					currentGameGridSize.current.clientHeight) *
+					currentGridSize[1],
 			);
-			if (
-				(touchMovePositionY > touchStartingPosY ||
-					touchMovePositionY < touchStartingPosY) &&
-				!disableX &&
-				!disableY
-			) {
-				setDisableX(true);
-			}
-			if (
-				(touchMovePositionX > touchStartingPosX ||
-					touchMovePositionX > touchStartingPosX) &&
-				!disableX &&
-				!disableY
-			) {
-				setDisableY(true);
-			}
-			if (tapped) {
-				setTapped(false);
-			}
-			if (!disableY) {
-				if (touchMovePositionY < touchStartingPosY) {
-					setTouchStartingPosY(touchMovePositionY);
-					setIntervalValue((1 / 60) * framesPerGridCell[level] * 1000);
-				} else if (touchMovePositionY - touchStartingPosY > 3) {
-					if (!tapped) {
+			setTouchStartingPosY(touchPositionY);
+			setTouchStartingPosX(touchPositionX);
+		},
+		[gameGridSize, gridSize],
+	);
+
+	const touchMoveHandler = useCallback(
+		(e: React.TouchEvent<HTMLDivElement>): void => {
+			const currentDisableX: boolean = disableX;
+			const currentDisableY: boolean = disableY;
+			const currentGameActive: boolean = gameActive;
+			const currentGameArray: any = [...gameArray];
+			const currentGridSize: TetrisCoordProps = [...gridSize];
+			const currentLevel: number = level;
+			const currentNextTetromino: string = nextTetromino;
+			const currentOffsets: OffsetsProps = offsets;
+			const currentPosition: TetrisCoordProps = [...position];
+			const currentPositionYMoved: number = positionYMoved;
+			const currentRandomTetromino: string = randomTetromino;
+			const currentTapped: boolean = tapped;
+			const currentTimestamp: number = timestamp;
+			const currentTouchStartingPosX: number = touchStartingPosX;
+			const currentTouchStartingPosY: number = touchStartingPosY;
+			setTimestamp(Date.now());
+			setPositionYMoved(e.changedTouches[0].clientY);
+			const dt = Date.now() - currentTimestamp;
+			const dy = e.changedTouches[0].clientY - currentPositionYMoved;
+			setTouchMoveSpeed(Math.round((dy / dt) * 100));
+			if (currentGameActive) {
+				const { ArrowLeft, ArrowRight } = KeyboardProps;
+				let tetrominoToSet: boolean;
+				const touchMovePositionX = Math.ceil(
+					((e.touches[0].clientX - gameGridSize.current.offsetLeft) /
+						gameGridSize.current.clientWidth) *
+						currentGridSize[0],
+				);
+				const touchMovePositionY = Math.ceil(
+					((e.touches[0].clientY - gameGridSize.current.offsetTop) /
+						gameGridSize.current.clientHeight) *
+						currentGridSize[1],
+				);
+				if (
+					(touchMovePositionY > currentTouchStartingPosY ||
+						touchMovePositionY < currentTouchStartingPosY) &&
+					!currentDisableX &&
+					!currentDisableY
+				) {
+					setDisableX(true);
+				}
+				if (
+					(touchMovePositionX > currentTouchStartingPosX ||
+						touchMovePositionX > currentTouchStartingPosX) &&
+					!currentDisableX &&
+					!currentDisableY
+				) {
+					setDisableY(true);
+				}
+				if (currentTapped) {
+					setTapped(false);
+				}
+				if (!currentDisableY) {
+					if (touchMovePositionY < currentTouchStartingPosY) {
 						setTouchStartingPosY(touchMovePositionY);
-						setIntervalValue(
-							((1 / 60) * framesPerGridCell[level] * 1000) /
-								(touchMovePositionY - touchStartingPosY + 2),
+						setIntervalValue((1 / 60) * framesPerGridCell[currentLevel] * 1000);
+					} else if (touchMovePositionY - currentTouchStartingPosY > 3) {
+						if (!currentTapped) {
+							setTouchStartingPosY(touchMovePositionY);
+							setIntervalValue(
+								((1 / 60) * framesPerGridCell[currentLevel] * 1000) /
+									(touchMovePositionY - currentTouchStartingPosY + 2),
+							);
+						}
+					}
+				}
+				if (!currentDisableX && Math.round((dy / dt) * 100) < 5) {
+					setTimestampSetter(Date.now());
+					if (currentTouchStartingPosX > touchMovePositionX) {
+						setDisableY(true);
+					}
+					if (
+						currentTouchStartingPosX > touchMovePositionX &&
+						currentTouchStartingPosX > 1
+					) {
+						tetrominoToSet = tetrominoSetHandler(
+							currentOffsets,
+							[currentPosition[0], currentPosition[1] - 1],
+							currentGameArray,
 						);
+						setGuiderHandler(
+							currentOffsets,
+							[
+								currentPosition[0],
+								currentPosition[1] - (tetrominoToSet ? 0 : 1),
+							],
+							ArrowLeft,
+							currentRandomTetromino,
+							currentGameArray,
+							0,
+						);
+						checkHandler(
+							currentOffsets,
+							currentNextTetromino,
+							[
+								currentPosition[0],
+								currentPosition[1] - (tetrominoToSet ? 0 : 1),
+							],
+							ArrowLeft,
+							tetrominoToSet,
+						);
+						setTouchStartingPosX(touchMovePositionX);
+					} else if (
+						currentTouchStartingPosX < touchMovePositionX &&
+						currentTouchStartingPosX < currentGridSize[0]
+					) {
+						tetrominoToSet = tetrominoSetHandler(
+							currentOffsets,
+							[currentPosition[0], currentPosition[1] + 1],
+							currentGameArray,
+						);
+						setGuiderHandler(
+							currentOffsets,
+							[
+								currentPosition[0],
+								currentPosition[1] + (tetrominoToSet ? 0 : 1),
+							],
+							ArrowRight,
+							currentRandomTetromino,
+							currentGameArray,
+							0,
+						);
+						checkHandler(
+							currentOffsets,
+							currentNextTetromino,
+							[
+								currentPosition[0],
+								currentPosition[1] + (tetrominoToSet ? 0 : 1),
+							],
+							ArrowRight,
+							tetrominoToSet,
+						);
+						setTouchStartingPosX(touchMovePositionX);
+					} else {
+						return;
 					}
 				}
 			}
-			if (!disableX && Math.round((dy / dt) * 100) < 5) {
-				setTimestampSetter(Date.now());
-				if (touchStartingPosX > touchMovePositionX) {
-					setDisableY(true);
-				}
-				if (touchStartingPosX > touchMovePositionX && touchStartingPosX > 1) {
-					tetrominoToSet = tetrominoSetHandler(
-						offsets,
-						[position[0], position[1] - 1],
-						gameArray,
-					);
-					setGuiderHandler(
-						offsets,
-						[position[0], position[1] - (tetrominoToSet ? 0 : 1)],
-						ArrowLeft,
-						randomTetromino,
-						gameArray,
-						0,
-					);
-					checkHandler(
-						offsets,
-						nextTetromino,
-						[position[0], position[1] - (tetrominoToSet ? 0 : 1)],
-						ArrowLeft,
-						tetrominoToSet,
-					);
-					setTouchStartingPosX(touchMovePositionX);
-				} else if (
-					touchStartingPosX < touchMovePositionX &&
-					touchStartingPosX < gridSize[0]
-				) {
-					tetrominoToSet = tetrominoSetHandler(
-						offsets,
-						[position[0], position[1] + 1],
-						gameArray,
-					);
-					setGuiderHandler(
-						offsets,
-						[position[0], position[1] + (tetrominoToSet ? 0 : 1)],
-						ArrowRight,
-						randomTetromino,
-						gameArray,
-						0,
-					);
-					checkHandler(
-						offsets,
-						nextTetromino,
-						[position[0], position[1] + (tetrominoToSet ? 0 : 1)],
-						ArrowRight,
-						tetrominoToSet,
-					);
-					setTouchStartingPosX(touchMovePositionX);
-				} else {
-					return;
-				}
-			}
-		}
-	};
+		},
+		[
+			checkHandler,
+			disableX,
+			disableY,
+			gameActive,
+			gameArray,
+			gameGridSize,
+			gridSize,
+			level,
+			nextTetromino,
+			offsets,
+			position,
+			positionYMoved,
+			randomTetromino,
+			setGuiderHandler,
+			tapped,
+			tetrominoSetHandler,
+			timestamp,
+			touchStartingPosX,
+			touchStartingPosY,
+		],
+	);
 
-	const touchEndHandler = () => {
-		if (gameActive) {
+	const touchEndHandler = useCallback(() => {
+		const currentFlipValue: number = flipValue;
+		const currentGameActive: boolean = gameActive;
+		const currentGameArray: any = [...gameArray];
+		const currentLevel: number = level;
+		const currentMoveTouchSpeed: number = moveTouchSpeed;
+		const currentNextTetromino: string = nextTetromino;
+		const currentOffsets: OffsetsProps = offsets;
+		const currentPosition: TetrisCoordProps = [...position];
+		const currentRandomTetromino: string = randomTetromino;
+		const currentTapped: boolean = tapped;
+		const currentTimestampSetter: number = timestampSetter;
+		if (currentGameActive) {
 			const { ArrowUp, ArrowDown } = KeyboardProps;
 			let tetrominoToSet: boolean;
-			console.log(moveTouchSpeed);
-			if (moveTouchSpeed > 20 && Date.now() - timestampSetter) {
+			if (currentMoveTouchSpeed > 20 && Date.now() - currentTimestampSetter) {
 				const { count } = setGuiderHandler(
-					offsets,
-					position,
+					currentOffsets,
+					currentPosition,
 					ArrowDown,
-					randomTetromino,
-					gameArray,
+					currentRandomTetromino,
+					currentGameArray,
 					0,
 				);
 				checkHandler(
-					offsets,
-					nextTetromino,
-					[position[0] + count, position[1]],
+					currentOffsets,
+					currentNextTetromino,
+					[currentPosition[0] + count, currentPosition[1]],
 					ArrowDown,
 				);
-				setIntervalValue((1 / 60) * framesPerGridCell[level] * 1000);
+				setIntervalValue((1 / 60) * framesPerGridCell[currentLevel] * 1000);
 				setTouchMoveSpeed(0);
 			}
-			if (tapped) {
-				let flipVal: number = flipValue;
-				const updatedFlipValue = flipValue === 3 ? 0 : flipValue + 1;
+			if (currentTapped) {
+				let flipVal: number = currentFlipValue;
+				const updatedFlipValue =
+					currentFlipValue === 3 ? 0 : currentFlipValue + 1;
 				tetrominoToSet = tetrominoSetHandler(
-					tetrominoes[`${randomTetromino}`].orientations[updatedFlipValue][0],
-					position,
-					gameArray,
+					tetrominoes[`${currentRandomTetromino}`].orientations[
+						updatedFlipValue
+					][0],
+					currentPosition,
+					currentGameArray,
 				);
 				if (!tetrominoToSet) {
 					soundPlay(TetrisFlip);
 					flipVal = updatedFlipValue;
 				}
 				setFlipValue(flipVal);
-				setOffsets(tetrominoes[`${randomTetromino}`].orientations[flipVal][0]);
+				setOffsets(
+					tetrominoes[`${currentRandomTetromino}`].orientations[flipVal][0],
+				);
 				setGuiderHandler(
-					tetrominoes[`${randomTetromino}`].orientations[flipVal][0],
-					position,
+					tetrominoes[`${currentRandomTetromino}`].orientations[flipVal][0],
+					currentPosition,
 					ArrowUp,
-					randomTetromino,
-					gameArray,
+					currentRandomTetromino,
+					currentGameArray,
 					0,
 				);
 				checkHandler(
-					tetrominoes[`${randomTetromino}`].orientations[flipVal][0],
-					nextTetromino,
-					position,
+					tetrominoes[`${currentRandomTetromino}`].orientations[flipVal][0],
+					currentNextTetromino,
+					currentPosition,
 					ArrowUp,
 				);
 			} else {
@@ -1003,7 +1114,29 @@ const App = (): JSX.Element => {
 			}
 			setTapped(true);
 		}
-	};
+	}, [
+		TetrisFlip,
+		checkHandler,
+		flipValue,
+		gameActive,
+		gameArray,
+		level,
+		moveTouchSpeed,
+		nextTetromino,
+		offsets,
+		position,
+		randomTetromino,
+		setGuiderHandler,
+		tapped,
+		tetrominoSetHandler,
+		timestampSetter,
+	]);
+
+	const themeTuneHandler = (): void =>
+		setMusicActive((musicActive: boolean): boolean => !musicActive);
+
+	const gameActiveHandler = (): void =>
+		setGameActive((gameActive: boolean): boolean => !gameActive);
 
 	return (
 		<div style={{ touchAction: "none" }}>
@@ -1020,8 +1153,12 @@ const App = (): JSX.Element => {
 			)}
 			<TetrisLayout
 				windowWidth={windowWidth}
-				onTouchStart={e => touchStartHandler(e)}
-				onTouchMove={e => touchMoveHandler(e)}
+				onTouchStart={(e: React.TouchEvent<HTMLDivElement>) =>
+					touchStartHandler(e)
+				}
+				onTouchMove={(e: React.TouchEvent<HTMLDivElement>) =>
+					touchMoveHandler(e)
+				}
 				onTouchEnd={() => touchEndHandler()}
 			>
 				<div ref={gameGridSize}>
@@ -1158,11 +1295,11 @@ const App = (): JSX.Element => {
 							[gameArray, gameInitialState],
 						)}
 						{useMemo(
-							(): false | React.ReactElement =>
+							(): false | (false | JSX.Element)[] =>
 								gameInitialState &&
 								!gameOver &&
 								guidePosition.map(
-									(block: TetrisCoordProps): false | React.ReactElement =>
+									(block: TetrisCoordProps): false | JSX.Element =>
 										block[0] > 1 && (
 											<TetrisBlock
 												key={`${block[0]}, ${block[1]}`}
@@ -1285,9 +1422,7 @@ const App = (): JSX.Element => {
 				{!gameOver && gameInitialState && (
 					<ButtonStyles
 						colour={colours.red}
-						onClick={(): void =>
-							setGameActive((gameActive: boolean): boolean => !gameActive)
-						}
+						onClick={() => gameActiveHandler()}
 						windowWidth={windowWidth}
 					>
 						{gameActive ? "Pause" : "Resume"}
