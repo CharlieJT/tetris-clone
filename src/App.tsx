@@ -1,9 +1,16 @@
 /* eslint-disable array-callback-return */
 /* eslint-disable no-loop-func */
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, {
+	useState,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+} from "react";
 import { GiSpeaker, GiSpeakerOff } from "react-icons/gi";
 import "./App.css";
 import useInterval from "./hooks/useInterval";
+import { useRect } from "./hooks/useRect";
 import TetrisBlock from "./Components/TetrisBlock/TetrisBlock";
 import ScoreDisplay from "./Components/ScoringDisplay/ScoreDisplay";
 import Modal from "./Components/Modal/Modal";
@@ -90,11 +97,21 @@ const App = (): JSX.Element => {
 				(_, j) => j > 1 && j < gridSize[0] && gameArr.push([i, j, 0]),
 			),
 	);
+	const gameGrid: any = useRef(null);
+	const gameGridSize: any = useRect(gameGrid);
 	const [gameActive, setGameActive] = useState<boolean>(false);
 	const [gameInitialState, setGameInitialState] = useState<boolean>(false);
+	const [tapped, setTapped] = useState<boolean>(true);
+	const [disableX, setDisableX] = useState<boolean>(false);
+	const [disableY, setDisableY] = useState<boolean>(false);
+	const [windowWidth, setWindowWidth] = useState<number>(
+		window.innerWidth || 0,
+	);
 	const [points, setPoints] = useState<number>(0);
 	const [lines, setLines] = useState<number>(0);
 	const [level, setLevel] = useState<number>(0);
+	const [touchStartingPosX, setTouchStartingPosX] = useState<number>(0);
+	const [touchStartingPosY, setTouchStartingPosY] = useState<number>(0);
 	const [lineAnimation, setLineAnimation] = useState<any>([]);
 	const [intervalValue, setIntervalValue] = useState<number>(intervalVal);
 	const [gameArray, setGameArray] = useState<GridCoordsProps>(gameArr);
@@ -502,6 +519,8 @@ const App = (): JSX.Element => {
 				tetrominoToSet
 			) {
 				soundPlay(TetrisSet);
+				setIntervalValue((1 / 60) * framesPerGridCell[level] * 1000);
+				setTapped(true);
 				const { offsetCount, checkGameOver, lineCount, newGameArray } =
 					topOffsetHandler(position, offsets);
 				if (newGameArray[-1] !== undefined || checkGameOver) {
@@ -572,6 +591,7 @@ const App = (): JSX.Element => {
 			gameArray,
 			gridSize,
 			TetrisSet,
+			level,
 			topOffsetHandler,
 			TetrisGameOver,
 			setGuiderHandler,
@@ -733,6 +753,16 @@ const App = (): JSX.Element => {
 		}
 	}, [keyPressedHandler, setIntervalValue, intervalVal, level, gameActive]);
 
+	const getWindowWidth = () => {
+		const windowWidth = window.innerWidth || 0;
+		setWindowWidth(windowWidth);
+	};
+
+	useEffect(() => {
+		window.addEventListener("resize", () => getWindowWidth());
+		return () => window.removeEventListener("resize", () => getWindowWidth());
+	}, []);
+
 	const startGameHandler = (): void => {
 		const startGameRandomTetromino: string =
 			Object.keys(tetrominoes)[
@@ -782,160 +812,371 @@ const App = (): JSX.Element => {
 		);
 	};
 
-	const themeTuneHandler = (): void => {
+	const themeTuneHandler = (): void =>
 		setMusicActive((musicActive: boolean): boolean => !musicActive);
+
+	const touchStartHandler = (e: any) => {
+		const touchPositionX = Math.ceil(
+			((e.touches[0].clientX - gameGridSize.current.offsetLeft) /
+				gameGridSize.current.clientWidth) *
+				gridSize[0],
+		);
+		const touchPositionY = Math.ceil(
+			((e.touches[0].clientY - gameGridSize.current.offsetTop) /
+				gameGridSize.current.clientHeight) *
+				gridSize[1],
+		);
+		setTouchStartingPosY(touchPositionY);
+		setTouchStartingPosX(touchPositionX);
+	};
+
+	const [timestamp, setTimeStamp] = useState<number>(0);
+	const [positionYMoved, setPositionYMoved] = useState<number>(0);
+	const [moveTouchSpeed, setTouchMoveSpeed] = useState<number>(0);
+
+	const touchMoveHandler = (e: React.TouchEvent<HTMLDivElement>): void => {
+		setTimeStamp(Date.now());
+		setPositionYMoved(e.changedTouches[0].clientY);
+		const dt = Date.now() - timestamp;
+		const dy = e.changedTouches[0].clientY - positionYMoved;
+		setTouchMoveSpeed(Math.round((dy / dt) * 100));
+		if (gameActive) {
+			const { ArrowLeft, ArrowRight } = KeyboardProps;
+			let tetrominoToSet: boolean;
+			const touchMovePositionX = Math.ceil(
+				((e.touches[0].clientX - gameGridSize.current.offsetLeft) /
+					gameGridSize.current.clientWidth) *
+					gridSize[0],
+			);
+			const touchMovePositionY = Math.ceil(
+				((e.touches[0].clientY - gameGridSize.current.offsetTop) /
+					gameGridSize.current.clientHeight) *
+					gridSize[1],
+			);
+			if (
+				(touchMovePositionY > touchStartingPosY ||
+					touchMovePositionY < touchStartingPosY) &&
+				!disableX &&
+				!disableY
+			) {
+				setDisableX(true);
+			}
+			if (
+				(touchMovePositionX > touchStartingPosX ||
+					touchMovePositionX > touchStartingPosX) &&
+				!disableX &&
+				!disableY
+			) {
+				setDisableY(true);
+			}
+			if (tapped) {
+				setTapped(false);
+			}
+			if (!disableY) {
+				if (touchMovePositionY < touchStartingPosY) {
+					setTouchStartingPosY(touchMovePositionY);
+					setIntervalValue((1 / 60) * framesPerGridCell[level] * 1000);
+				} else if (touchMovePositionY - touchStartingPosY > 3) {
+					if (!tapped) {
+						setTouchStartingPosY(touchMovePositionY);
+						setIntervalValue(
+							((1 / 60) * framesPerGridCell[level] * 1000) /
+								(touchMovePositionY - touchStartingPosY + 2),
+						);
+					}
+				}
+			}
+			if (!disableX && Math.round((dy / dt) * 100) < 5) {
+				if (touchStartingPosX > touchMovePositionX) {
+					setDisableY(true);
+				}
+				if (touchStartingPosX > touchMovePositionX && touchStartingPosX > 1) {
+					tetrominoToSet = tetrominoSetHandler(
+						offsets,
+						[position[0], position[1] - 1],
+						gameArray,
+					);
+					setGuiderHandler(
+						offsets,
+						[position[0], position[1] - (tetrominoToSet ? 0 : 1)],
+						ArrowLeft,
+						randomTetromino,
+						gameArray,
+						0,
+					);
+					checkHandler(
+						offsets,
+						nextTetromino,
+						[position[0], position[1] - (tetrominoToSet ? 0 : 1)],
+						ArrowLeft,
+						tetrominoToSet,
+					);
+					setTouchStartingPosX(touchMovePositionX);
+				} else if (
+					touchStartingPosX < touchMovePositionX &&
+					touchStartingPosX < gridSize[0]
+				) {
+					tetrominoToSet = tetrominoSetHandler(
+						offsets,
+						[position[0], position[1] + 1],
+						gameArray,
+					);
+					setGuiderHandler(
+						offsets,
+						[position[0], position[1] + (tetrominoToSet ? 0 : 1)],
+						ArrowRight,
+						randomTetromino,
+						gameArray,
+						0,
+					);
+					checkHandler(
+						offsets,
+						nextTetromino,
+						[position[0], position[1] + (tetrominoToSet ? 0 : 1)],
+						ArrowRight,
+						tetrominoToSet,
+					);
+					setTouchStartingPosX(touchMovePositionX);
+				} else {
+					return;
+				}
+			}
+		}
+	};
+
+	const touchEndHandler = () => {
+		if (gameActive) {
+			const { ArrowUp, ArrowDown } = KeyboardProps;
+			let tetrominoToSet: boolean;
+			if (moveTouchSpeed > 20) {
+				const { count } = setGuiderHandler(
+					offsets,
+					position,
+					ArrowDown,
+					randomTetromino,
+					gameArray,
+					0,
+				);
+				checkHandler(
+					offsets,
+					nextTetromino,
+					[position[0] + count, position[1]],
+					ArrowDown,
+				);
+				setIntervalValue((1 / 60) * framesPerGridCell[level] * 1000);
+				setTouchMoveSpeed(0);
+			}
+			if (tapped) {
+				let flipVal: number = flipValue;
+				const updatedFlipValue = flipValue === 3 ? 0 : flipValue + 1;
+				tetrominoToSet = tetrominoSetHandler(
+					tetrominoes[`${randomTetromino}`].orientations[updatedFlipValue][0],
+					position,
+					gameArray,
+				);
+				if (!tetrominoToSet) {
+					soundPlay(TetrisFlip);
+					flipVal = updatedFlipValue;
+				}
+				setFlipValue(flipVal);
+				setOffsets(tetrominoes[`${randomTetromino}`].orientations[flipVal][0]);
+				setGuiderHandler(
+					tetrominoes[`${randomTetromino}`].orientations[flipVal][0],
+					position,
+					ArrowUp,
+					randomTetromino,
+					gameArray,
+					0,
+				);
+				checkHandler(
+					tetrominoes[`${randomTetromino}`].orientations[flipVal][0],
+					nextTetromino,
+					position,
+					ArrowUp,
+				);
+			} else {
+				setDisableX(false);
+				setDisableY(false);
+			}
+			setTapped(true);
+		}
 	};
 
 	return (
 		<>
 			{useMemo(
 				(): false | React.ReactElement =>
-					musicActive &&
-					gameActive && (
-						<ReactHowler src={TetrisTheme} loop={true} playing={true} />
+					!gameOver && (
+						<ReactHowler
+							src={TetrisTheme}
+							loop={true}
+							playing={musicActive && gameActive}
+						/>
 					),
-				[musicActive, gameActive, TetrisTheme],
+				[gameOver, TetrisTheme, musicActive, gameActive],
 			)}
-			<TetrisLayout>
-				<TetrisGrid gridSize={gridSize} gridWidth={gridWidth}>
-					{useMemo(
-						(): false | React.ReactElement =>
-							gameOver && <Modal text="Game Over!" />,
-						[gameOver],
-					)}
-					{useMemo(
-						(): false | React.ReactElement =>
-							gameInitialState &&
-							!gameActive &&
-							!gameOver && <Modal text="Paused" />,
-						[gameActive, gameInitialState, gameOver],
-					)}
-					{useMemo(
-						(): false | React.ReactElement =>
-							!gameInitialState &&
-							!gameActive &&
-							!gameOver && <Modal text="Press 'Start Game' to play" initial />,
-						[gameActive, gameInitialState, gameOver],
-					)}
-					{useMemo(
-						(): void =>
-							gameInitialState &&
-							!gameOver &&
-							tetrominoes[`${randomTetromino}`].orientations[
-								flipValue
-							][0].shape.map(
-								(
-									block: TetrisCoordProps,
-									i: number,
-								): (
-									| false
-									| React.ReactElement<
-											TetrisCoordProps,
-											string | React.JSXElementConstructor<TetrisCoordProps>
-									  >
-								)[] =>
-									block.map(
-										(coord: number, j: number): false | React.ReactElement =>
-											coord !== 0 && (
-												<TetrisBlock
-													key={`${i}, ${j}`}
-													colour={tetrominoes[`${randomTetromino}`].colour}
-													tetrisCoordX={position[0] + i + 1}
-													tetrisCoordY={position[1] + j + 1}
-												/>
-											),
-									),
-							),
-						[gameInitialState, gameOver, randomTetromino, flipValue, position],
-					)}
-					{useMemo(
-						(): React.ReactElement[] =>
-							borderArray.map(
-								(block: TetrisCoordProps): JSX.Element => (
-									<TetrisBlock
-										key={`${block[0]}, ${block[1]}`}
-										colour={colours.grey}
-										tetrisCoordX={block[0]}
-										tetrisCoordY={block[1]}
-									/>
+			<TetrisLayout windowWidth={windowWidth}>
+				<div
+					ref={gameGridSize}
+					onTouchStart={e => touchStartHandler(e)}
+					onTouchMove={e => touchMoveHandler(e)}
+					onTouchEnd={() => touchEndHandler()}
+					style={{ touchAction: "none" }}
+				>
+					<TetrisGrid
+						gridSize={gridSize}
+						gridWidth={gridWidth}
+						windowWidth={windowWidth}
+					>
+						{useMemo(
+							(): false | React.ReactElement =>
+								gameOver && <Modal text="Game Over!" />,
+							[gameOver],
+						)}
+						{useMemo(
+							(): false | React.ReactElement =>
+								gameInitialState &&
+								!gameActive &&
+								!gameOver && <Modal text="Paused" />,
+							[gameActive, gameInitialState, gameOver],
+						)}
+						{useMemo(
+							(): false | React.ReactElement =>
+								!gameInitialState &&
+								!gameActive &&
+								!gameOver && (
+									<Modal text="Press 'Start Game' to play" initial />
 								),
-							),
-						[borderArray],
-					)}
-					{useMemo(
-						(): React.ReactElement[] =>
-							lineAnimation.length > 0 &&
-							lineAnimation.map((block: TetrisCoordProps): JSX.Element => {
-								return (
-									<TetrisBlock
-										animation={true}
-										key={`${block[0]}, ${block[1]}`}
-										colour={colours.white}
-										tetrisCoordX={block[0]}
-										tetrisCoordY={block[1]}
-									/>
-								);
-							}),
-						[lineAnimation],
-					)}
-					{useMemo(
-						():
-							| false
-							| (
-									| false
-									| React.ReactElement<
-											TetrisCoordProps,
-											| string
-											| ((
-													props: TetrisCoordProps,
-											  ) => React.ReactElement<
-													TetrisCoordProps,
-													string | React.JSXElementConstructor<TetrisCoordProps>
-											  > | null)
-											| (new (props: TetrisCoordProps) => React.Component<
-													TetrisCoordProps,
-													TetrisCoordProps,
-													TetrisCoordProps
-											  >)
-									  >
-							  )[] =>
-							gameInitialState &&
-							gameArray.map(
-								(
-									block: TetrisCoordProps,
-									id: number,
-								): false | React.ReactElement =>
-									block[2] !== 0 && (
-										<TetrisBlock
-											key={id}
-											colour={tetrominoes[`${block[2]}`].colour}
-											tetrisCoordX={block[0]}
-											tetrisCoordY={block[1]}
-										/>
-									),
-							),
-						[gameArray, gameInitialState],
-					)}
-					{useMemo(
-						(): false | React.ReactElement =>
-							gameInitialState &&
-							!gameOver &&
-							guidePosition.map(
-								(block: TetrisCoordProps): false | React.ReactElement =>
-									block[0] > 1 && (
+							[gameActive, gameInitialState, gameOver],
+						)}
+						{useMemo(
+							(): void =>
+								gameInitialState &&
+								!gameOver &&
+								tetrominoes[`${randomTetromino}`].orientations[
+									flipValue
+								][0].shape.map(
+									(
+										block: TetrisCoordProps,
+										i: number,
+									): (
+										| false
+										| React.ReactElement<
+												TetrisCoordProps,
+												string | React.JSXElementConstructor<TetrisCoordProps>
+										  >
+									)[] =>
+										block.map(
+											(coord: number, j: number): false | React.ReactElement =>
+												coord !== 0 && (
+													<TetrisBlock
+														key={`${i}, ${j}`}
+														colour={tetrominoes[`${randomTetromino}`].colour}
+														tetrisCoordX={position[0] + i + 1}
+														tetrisCoordY={position[1] + j + 1}
+													/>
+												),
+										),
+								),
+							[
+								gameInitialState,
+								gameOver,
+								randomTetromino,
+								flipValue,
+								position,
+							],
+						)}
+						{useMemo(
+							(): React.ReactElement[] =>
+								borderArray.map(
+									(block: TetrisCoordProps): JSX.Element => (
 										<TetrisBlock
 											key={`${block[0]}, ${block[1]}`}
-											colour={tetrominoes[`${block[2]}`].colour}
+											colour={colours.grey}
 											tetrisCoordX={block[0]}
 											tetrisCoordY={block[1]}
-											border
 										/>
 									),
-							),
-						[gameOver, guidePosition, gameInitialState],
-					)}
-				</TetrisGrid>
-				<LeftColumnStyles>
+								),
+							[borderArray],
+						)}
+						{useMemo(
+							(): React.ReactElement[] =>
+								lineAnimation.length > 0 &&
+								lineAnimation.map((block: TetrisCoordProps): JSX.Element => {
+									return (
+										<TetrisBlock
+											animation={true}
+											key={`${block[0]}, ${block[1]}`}
+											colour={colours.white}
+											tetrisCoordX={block[0]}
+											tetrisCoordY={block[1]}
+										/>
+									);
+								}),
+							[lineAnimation],
+						)}
+						{useMemo(
+							():
+								| false
+								| (
+										| false
+										| React.ReactElement<
+												TetrisCoordProps,
+												| string
+												| ((
+														props: TetrisCoordProps,
+												  ) => React.ReactElement<
+														TetrisCoordProps,
+														| string
+														| React.JSXElementConstructor<TetrisCoordProps>
+												  > | null)
+												| (new (props: TetrisCoordProps) => React.Component<
+														TetrisCoordProps,
+														TetrisCoordProps,
+														TetrisCoordProps
+												  >)
+										  >
+								  )[] =>
+								gameInitialState &&
+								gameArray.map(
+									(
+										block: TetrisCoordProps,
+										id: number,
+									): false | React.ReactElement =>
+										block[2] !== 0 && (
+											<TetrisBlock
+												key={id}
+												colour={tetrominoes[`${block[2]}`].colour}
+												tetrisCoordX={block[0]}
+												tetrisCoordY={block[1]}
+											/>
+										),
+								),
+							[gameArray, gameInitialState],
+						)}
+						{useMemo(
+							(): false | React.ReactElement =>
+								gameInitialState &&
+								!gameOver &&
+								guidePosition.map(
+									(block: TetrisCoordProps): false | React.ReactElement =>
+										block[0] > 1 && (
+											<TetrisBlock
+												key={`${block[0]}, ${block[1]}`}
+												colour={tetrominoes[`${block[2]}`].colour}
+												tetrisCoordX={block[0]}
+												tetrisCoordY={block[1]}
+												border
+											/>
+										),
+								),
+							[gameOver, guidePosition, gameInitialState],
+						)}
+					</TetrisGrid>
+				</div>
+
+				<LeftColumnStyles windowWidth={windowWidth}>
 					{musicActive ? (
 						<GiSpeaker
 							style={{ cursor: "pointer", color: "#fff" }}
@@ -952,6 +1193,7 @@ const App = (): JSX.Element => {
 					<NextTetrisGrid
 						gridSize={nextGridSize}
 						gridWidth={(gridWidth / gridSize[1]) * nextGridSize[1]}
+						windowWidth={windowWidth}
 					>
 						{useMemo(
 							(): false | React.ReactElement =>
@@ -1007,13 +1249,22 @@ const App = (): JSX.Element => {
 							[gameInitialState, nextTetromino, nextGridSize],
 						)}
 					</NextTetrisGrid>
-					<DisplayContainerStyles>
+					<DisplayContainerStyles windowWidth={windowWidth}>
 						<ScoreDisplay
 							title="Points"
 							value={points.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+							windowWidth={windowWidth}
 						/>
-						<ScoreDisplay title="Lines" value={lines} />
-						<ScoreDisplay title="Level" value={level} />
+						<ScoreDisplay
+							title="Lines"
+							value={lines}
+							windowWidth={windowWidth}
+						/>
+						<ScoreDisplay
+							title="Level"
+							value={level}
+							windowWidth={windowWidth}
+						/>
 					</DisplayContainerStyles>
 				</LeftColumnStyles>
 			</TetrisLayout>
@@ -1021,6 +1272,7 @@ const App = (): JSX.Element => {
 				<ButtonStyles
 					colour={colours.green}
 					onClick={(): void => startGameHandler()}
+					windowWidth={windowWidth}
 				>
 					{gameInitialState && !gameOver
 						? "Restart"
@@ -1034,6 +1286,7 @@ const App = (): JSX.Element => {
 						onClick={(): void =>
 							setGameActive((gameActive: boolean): boolean => !gameActive)
 						}
+						windowWidth={windowWidth}
 					>
 						{gameActive ? "Pause" : "Resume"}
 					</ButtonStyles>
