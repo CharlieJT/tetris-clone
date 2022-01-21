@@ -830,12 +830,13 @@ const App = (): JSX.Element => {
 		setTouchStartingPosX(touchPositionX);
 	};
 
-	const [timestamp, setTimeStamp] = useState<number>(0);
+	const [timestamp, setTimestamp] = useState<number>(0);
+	const [timestampSetter, setTimestampSetter] = useState<number>(0);
 	const [positionYMoved, setPositionYMoved] = useState<number>(0);
 	const [moveTouchSpeed, setTouchMoveSpeed] = useState<number>(0);
 
 	const touchMoveHandler = (e: React.TouchEvent<HTMLDivElement>): void => {
-		setTimeStamp(Date.now());
+		setTimestamp(Date.now());
 		setPositionYMoved(e.changedTouches[0].clientY);
 		const dt = Date.now() - timestamp;
 		const dy = e.changedTouches[0].clientY - positionYMoved;
@@ -887,6 +888,7 @@ const App = (): JSX.Element => {
 				}
 			}
 			if (!disableX && Math.round((dy / dt) * 100) < 5) {
+				setTimestampSetter(Date.now());
 				if (touchStartingPosX > touchMovePositionX) {
 					setDisableY(true);
 				}
@@ -948,7 +950,8 @@ const App = (): JSX.Element => {
 		if (gameActive) {
 			const { ArrowUp, ArrowDown } = KeyboardProps;
 			let tetrominoToSet: boolean;
-			if (moveTouchSpeed > 5) {
+			console.log(moveTouchSpeed);
+			if (moveTouchSpeed > 5 && Date.now() - timestampSetter) {
 				const { count } = setGuiderHandler(
 					offsets,
 					position,
