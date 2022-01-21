@@ -951,7 +951,7 @@ const App = (): JSX.Element => {
 			const { ArrowUp, ArrowDown } = KeyboardProps;
 			let tetrominoToSet: boolean;
 			console.log(moveTouchSpeed);
-			if (moveTouchSpeed > 5 && Date.now() - timestampSetter) {
+			if (moveTouchSpeed > 20 && Date.now() - timestampSetter) {
 				const { count } = setGuiderHandler(
 					offsets,
 					position,
