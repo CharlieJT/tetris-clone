@@ -886,7 +886,7 @@ const App = (): JSX.Element => {
 					}
 				}
 			}
-			if (!disableX && Math.round((dy / dt) * 100) < 1) {
+			if (!disableX && Math.round((dy / dt) * 100) < 5) {
 				if (touchStartingPosX > touchMovePositionX) {
 					setDisableY(true);
 				}
@@ -948,7 +948,7 @@ const App = (): JSX.Element => {
 		if (gameActive) {
 			const { ArrowUp, ArrowDown } = KeyboardProps;
 			let tetrominoToSet: boolean;
-			if (moveTouchSpeed > 10) {
+			if (moveTouchSpeed > 5) {
 				const { count } = setGuiderHandler(
 					offsets,
 					position,
