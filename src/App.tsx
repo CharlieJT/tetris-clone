@@ -30,6 +30,7 @@ import {
 	NextTetrisGrid,
 	ButtonContainerStyles,
 	ButtonStyles,
+	HighScoreStyles,
 } from "./TetrisStyles";
 
 const GRID_SIZE = [12, 22];
@@ -110,6 +111,9 @@ const App = (): JSX.Element => {
 	const [moveTouchSpeed, setTouchMoveSpeed] = useState<number>(0);
 	const [windowWidth, setWindowWidth] = useState<number>(
 		window.innerWidth || 0,
+	);
+	const [highScore, setHighScore] = useState<string>(
+		localStorage["tetris_high_score"] || "-",
 	);
 	const [points, setPoints] = useState<number>(0);
 	const [lines, setLines] = useState<number>(0);
@@ -532,6 +536,22 @@ const App = (): JSX.Element => {
 		[nextTetromino, setShapeHandler],
 	);
 
+	const highScoreHandler = useCallback((): void => {
+		const currentPoints: number = points;
+		const stringScore = String(currentPoints);
+		var highScore = localStorage["tetris_high_score"] || 0;
+		if (!highScore && currentPoints > 0) {
+			localStorage.setItem("tetris_high_score", stringScore);
+			setHighScore(stringScore);
+		} else {
+			if (currentPoints > parseInt(highScore)) {
+				console.log("Should set");
+				localStorage.setItem("tetris_high_score", stringScore);
+				setHighScore(stringScore);
+			}
+		}
+	}, [points]);
+
 	const checkHandler = useCallback(
 		(
 			offsets: OffsetsProps,
@@ -568,6 +588,7 @@ const App = (): JSX.Element => {
 					setGuidePosition([]);
 					setPosition([1, 5]);
 					setGameArray(gameOverArray);
+					highScoreHandler();
 				} else {
 					const newInitialPosition: TetrisCoordProps = [
 						1 -
@@ -622,14 +643,15 @@ const App = (): JSX.Element => {
 			}
 		},
 		[
-			tetrominoSetHandler,
 			gameArray,
 			gridSize,
-			TetrisSet,
 			level,
+			tetrominoSetHandler,
+			TetrisSet,
 			topOffsetHandler,
-			setGuiderHandler,
 			TetrisGameOver,
+			highScoreHandler,
+			setGuiderHandler,
 			TetrisMove,
 		],
 	);
@@ -1151,6 +1173,10 @@ const App = (): JSX.Element => {
 					),
 				[gameOver, TetrisTheme, musicActive, gameActive],
 			)}
+			<HighScoreStyles>
+				High Score:{" "}
+				{highScore.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") || "-"}
+			</HighScoreStyles>
 			<TetrisLayout
 				windowWidth={windowWidth}
 				onTouchStart={(e: React.TouchEvent<HTMLDivElement>) =>
@@ -1169,8 +1195,16 @@ const App = (): JSX.Element => {
 					>
 						{useMemo(
 							(): false | React.ReactElement =>
-								gameOver && <Modal text="Game Over!" />,
-							[gameOver],
+								gameOver && (
+									<Modal
+										text="Game Over!"
+										text2={`Score: ${
+											points.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") ||
+											"-"
+										}`}
+									/>
+								),
+							[gameOver, points],
 						)}
 						{useMemo(
 							(): false | React.ReactElement =>

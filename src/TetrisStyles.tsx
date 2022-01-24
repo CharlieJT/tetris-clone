@@ -93,12 +93,8 @@ const NextTetrisGrid = styled.div.attrs<NextGridSizeProps>(
 		style: {
 			gridTemplateColumns: `repeat(${gridSize[0]}, 1fr)`,
 			gridTemplateRows: `repeat(${gridSize[1]}, 1fr)`,
-			width: `${
-				(gridWidth / gridSize[1]) *
-				gridSize[0] *
-				((windowWidth ?? 0) < 600 ? 1 : 1.2)
-			}vmin`,
-			height: `${gridWidth * ((windowWidth ?? 0) < 600 ? 1 : 1.2)}vmin`,
+			width: `${(gridWidth / gridSize[1]) * gridSize[0]}vmin`,
+			height: `${gridWidth}vmin`,
 			margin: (windowWidth ?? 0) < 600 ? "auto" : "0",
 		},
 	}),
@@ -181,6 +177,13 @@ const ButtonStyles = styled.button.attrs<ButtonProps>(
 	cursor: pointer;
 `;
 
+const HighScoreStyles = styled.div`
+	color: #fff;
+	text-align: right;
+	padding: 0 2vmin;
+	font-size: 2vmin;
+`;
+
 export {
 	TetrisLayout,
 	TetrisGrid,
@@ -189,4 +192,5 @@ export {
 	NextTetrisGrid,
 	ButtonContainerStyles,
 	ButtonStyles,
+	HighScoreStyles,
 };
