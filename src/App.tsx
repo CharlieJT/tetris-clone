@@ -16,6 +16,7 @@ import ScoreDisplay from "./Components/ScoringDisplay/ScoreDisplay";
 import Modal from "./Components/Modal/Modal";
 import { Howl } from "howler";
 import ReactHowler from "react-howler";
+import { uniqueCoordsHandler, generatedTetrominoHandler } from "./utils";
 import {
 	framesPerGridCell,
 	gamePoints,
@@ -41,7 +42,7 @@ const INTERVAL_VALUE = (1 / 60) * framesPerGridCell[0] * 1000;
 
 type ShapeProps = any[];
 
-type OffsetsProps = {
+export type OffsetsProps = {
 	shape: ShapeProps;
 	topOffset: number;
 	leftOffset: number;
@@ -67,9 +68,9 @@ enum TetrominoProps {
 	O = "O",
 }
 
-type TetrisCoordProps = number[];
+export type TetrisCoordProps = number[];
 type GridCoordStringProps = [number, number, string];
-type GridCoordsProps = Array<TetrisCoordProps>;
+export type GridCoordsProps = Array<TetrisCoordProps>;
 type FilterGeneratorItemProps = Array<GridCoordStringProps>;
 type FilterGeneratorProps = Array<FilterGeneratorItemProps>;
 
@@ -188,21 +189,6 @@ const App = (): JSX.Element => {
 		sound.play();
 	};
 
-	const uniqueCoordsHandler = (
-		items: GridCoordsProps,
-		key: {
-			(separator?: string | undefined): string;
-			(separator?: string | undefined): string;
-			apply?: any;
-		},
-	): GridCoordsProps => {
-		let set: any = {};
-		return items.filter((item: TetrisCoordProps) => {
-			let k = key ? key.apply(item) : item;
-			return k in set ? false : (set[k] = true);
-		});
-	};
-
 	const borderArray: GridCoordsProps = uniqueCoordsHandler(
 		borderCreateArray.sort(
 			(a: TetrisCoordProps, b: TetrisCoordProps): number =>
@@ -230,26 +216,6 @@ const App = (): JSX.Element => {
 		},
 		gameActive ? intervalValue : null,
 	);
-
-	const generatedTetrominoHandler = (
-		position: TetrisCoordProps,
-		offsets: OffsetsProps,
-	) => {
-		return offsets.shape
-			.map(
-				(row: TetrisCoordProps, i: number): GridCoordsProps =>
-					row.map((el: number, j: number): any =>
-						el !== 0
-							? [
-									position[0] + i + offsets.leftOffset,
-									position[1] + j + 1 + offsets.rightOffset,
-							  ]
-							: false,
-					),
-			)
-			.reduce((arr: GridCoordsProps, el: GridCoordsProps) => arr.concat(el), [])
-			.filter((el: TetrisCoordProps): TetrisCoordProps => el);
-	};
 
 	const positionHandler = useCallback(
 		(offsets: OffsetsProps, position: TetrisCoordProps) => {
