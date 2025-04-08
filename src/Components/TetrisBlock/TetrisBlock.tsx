@@ -1,49 +1,45 @@
 import {
-	BlockProps,
-	BlockStyles,
-	BorderStyles,
-	AnimationStyles,
-	InnerBlockTopStyles,
-	InnerBlockLeftStyles,
-	InnerBlockRightStyles,
-	InnerBlockBottomStyles,
+  BlockProps,
+  BlockStyles,
+  BorderStyles,
+  AnimationStyles,
+  InnerBlockTopStyles,
+  InnerBlockLeftStyles,
+  InnerBlockRightStyles,
+  InnerBlockBottomStyles,
 } from "./TetrisBlockStyles";
 
 const TetrisBlock = ({
-	colour,
-	border,
-	animation,
-	tetrisCoordX,
-	tetrisCoordY,
+  colour,
+  border,
+  animation,
+  tetrisCoordX,
+  tetrisCoordY,
 }: BlockProps): JSX.Element => {
-	return (
-		<>
-			{animation ? (
-				<AnimationStyles
-					colour={colour}
-					tetrisCoordX={tetrisCoordX}
-					tetrisCoordY={tetrisCoordY}
-				/>
-			) : border ? (
-				<BorderStyles
-					colour={colour}
-					tetrisCoordX={tetrisCoordX}
-					tetrisCoordY={tetrisCoordY}
-				/>
-			) : (
-				<BlockStyles
-					colour={colour}
-					tetrisCoordX={tetrisCoordX}
-					tetrisCoordY={tetrisCoordY}
-				>
-					<InnerBlockTopStyles colour={colour} />
-					<InnerBlockLeftStyles colour={colour} />
-					<InnerBlockRightStyles colour={colour} />
-					<InnerBlockBottomStyles colour={colour} />
-				</BlockStyles>
-			)}
-		</>
-	);
+  const styles = { colour, tetrisCoordX, tetrisCoordY };
+
+  const InnerBlockComponents = [
+    InnerBlockTopStyles,
+    InnerBlockLeftStyles,
+    InnerBlockRightStyles,
+    InnerBlockBottomStyles,
+  ];
+
+  return (
+    <>
+      {animation ? (
+        <AnimationStyles {...styles} />
+      ) : border ? (
+        <BorderStyles {...styles} />
+      ) : (
+        <BlockStyles {...styles}>
+          {InnerBlockComponents.map((Component, index) => (
+            <Component key={index} colour={colour} />
+          ))}
+        </BlockStyles>
+      )}
+    </>
+  );
 };
 
 export default TetrisBlock;

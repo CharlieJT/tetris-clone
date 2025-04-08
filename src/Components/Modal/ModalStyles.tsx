@@ -6,8 +6,8 @@ export type ModalProps = {
 
 const ModalStyles = styled.div.attrs<ModalProps>(({ initial }) => ({
   style: {
-    backgroundColor: !initial && "#fff",
-    opacity: !initial && 0.7,
+    backgroundColor: !initial ? "#fff" : undefined,
+    opacity: !initial ? 0.7 : undefined,
   },
 }))<ModalProps>`
   position: absolute;
