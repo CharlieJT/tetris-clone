@@ -27,85 +27,77 @@ const colours = {
   white: "#fff",
 };
 
-const tetrominoesInformation = [
+export const tetrominoesInformation = [
   {
-    intialShape: [
-      [0, 0, 0],
-      ["Z", "Z", 0],
-      [0, "Z", "Z"],
-    ],
+    intialShape: [0, 0, 0, 1, 1, 0, 0, 1, 1],
     letter: "Z",
     colour: colours.red,
   },
   {
-    intialShape: [
-      [0, 0, 0],
-      ["L", "L", "L"],
-      ["L", 0, 0],
-    ],
+    intialShape: [0, 0, 0, 1, 1, 1, 1, 0, 0],
     letter: "L",
     colour: colours.beige,
   },
   {
-    intialShape: [
-      [0, 0, 0],
-      ["T", "T", "T"],
-      [0, "T", 0],
-    ],
+    intialShape: [0, 0, 0, 1, 1, 1, 0, 1, 0],
     letter: "T",
     colour: colours.purple,
   },
   {
-    intialShape: [
-      [0, 0, 0],
-      ["J", "J", "J"],
-      [0, 0, "J"],
-    ],
+    intialShape: [0, 0, 0, 1, 1, 1, 0, 0, 1],
     letter: "J",
     colour: colours.blue,
   },
   {
-    intialShape: [
-      [0, 0, 0, 0],
-      ["I", "I", "I", "I"],
-      [0, 0, 0, 0],
-      [0, 0, 0, 0],
-    ],
+    intialShape: [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
     letter: "I",
     colour: colours.lightblue,
   },
   {
-    intialShape: [
-      [0, 0, 0],
-      [0, "S", "S"],
-      ["S", "S", 0],
-    ],
+    intialShape: [0, 0, 0, 0, 1, 1, 1, 1, 0],
     letter: "S",
     colour: colours.green,
   },
   {
-    intialShape: [
-      ["O", "O"],
-      ["O", "O"],
-    ],
+    intialShape: [1, 1, 1, 1],
     letter: "O",
     colour: colours.yellow,
   },
 ];
 
+const arrayChunks = (
+  array: number[],
+  size: number,
+  letter: string
+): ShapeItem[] => {
+  let count = 0;
+  const buildArray = [];
+  for (let i = 0; i < size; i++) {
+    const newArray = array
+      .slice(count, count + size)
+      .map((item) => (Boolean(item) ? letter : 0));
+    if (newArray.length) buildArray.push(newArray);
+    count += size;
+  }
+  return buildArray;
+};
+
 export const getOffsets = (shape: ShapeItem[], letter: string) => {
+  const itemEqualsLetter = (item: string | number) => item === letter;
   const topOffset = shape.findIndex((items) => items.includes(letter));
+  const filterByPositives = (indexArray: number[]) =>
+    indexArray.filter((index) => index >= 0);
   const leftOffset = Math.min(
-    ...shape
-      .map((items) => items.findIndex((item) => item === letter))
-      .filter((index) => index >= 0)
+    ...filterByPositives(
+      shape.map((items) => items.findIndex(itemEqualsLetter))
+    )
   );
   const rightOffset =
     shape.length -
     Math.max(
-      ...shape
-        .map((items) => findLastIndex(items, (item) => item === letter) + 1)
-        .filter((index) => index >= 0)
+      ...filterByPositives(
+        shape.map((items) => findLastIndex(items, itemEqualsLetter) + 1)
+      )
     );
   const bottomOffset =
     shape.length -
@@ -120,16 +112,22 @@ export const getShapeInfo = (brandNewShape: ShapeItem[], letter: string) => [
 export const getTetrominoesHandler = (tetrominoesInfo: TetrominoInfo[]) => {
   const tetrominoesBuilder: TetrominoesBuilder = {};
   tetrominoesInfo.forEach(({ intialShape, letter, colour }) => {
-    const orientations = [getShapeInfo(intialShape, letter)];
+    let updatedShape = arrayChunks(
+      intialShape,
+      Math.sqrt(intialShape.length),
+      letter
+    );
+    const orientations = [getShapeInfo(updatedShape, letter)];
+
     for (let i = 0; i < MAX_FLIP_VALUE; i++) {
-      const newShape: ShapeItem[] = intialShape.map((row) => row.map(() => 0));
-      for (let row = 0; row < intialShape.length; row++) {
-        for (let col = 0; col < intialShape[row].length; col++) {
-          newShape[row][col] = intialShape[intialShape.length - 1 - col][row];
+      const newShape: ShapeItem[] = updatedShape.map((row) => row.map(() => 0));
+      for (let row = 0; row < updatedShape.length; row++) {
+        for (let col = 0; col < updatedShape[row].length; col++) {
+          newShape[row][col] = updatedShape[updatedShape.length - 1 - col][row];
         }
       }
-      intialShape = newShape;
-      orientations.push(getShapeInfo(intialShape, letter));
+      updatedShape = newShape;
+      orientations.push(getShapeInfo(updatedShape, letter));
     }
     tetrominoesBuilder[letter] = { orientations, colour };
   });
