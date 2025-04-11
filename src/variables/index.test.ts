@@ -63,12 +63,7 @@ describe("getTetrominoesHandler", () => {
   it("should generate tetrominoes with all orientations", () => {
     const tetrominoesInfo: TetrominoInfo[] = [
       {
-        intialShape: [
-          [0, 0, 0, 0],
-          ["I", "I", "I", "I"],
-          [0, 0, 0, 0],
-          [0, 0, 0, 0],
-        ],
+        intialShape: [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
         letter: "I",
         colour: "#0deff0",
       },
@@ -153,30 +148,17 @@ describe("getTetrominoesHandler with multiple shapes", () => {
   it("should generate tetrominoes with all orientations", () => {
     const tetrominoesInfo: TetrominoInfo[] = [
       {
-        intialShape: [
-          [0, 0, 0],
-          ["J", "J", "J"],
-          [0, 0, "J"],
-        ],
+        intialShape: [0, 0, 0, 1, 1, 1, 0, 0, 1],
         letter: "J",
         colour: "#0034ef",
       },
       {
-        intialShape: [
-          [0, 0, 0, 0],
-          ["I", "I", "I", "I"],
-          [0, 0, 0, 0],
-          [0, 0, 0, 0],
-        ],
+        intialShape: [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
         letter: "I",
         colour: "#0deff0",
       },
       {
-        intialShape: [
-          [0, 0, 0],
-          [0, "S", "S"],
-          ["S", "S", 0],
-        ],
+        intialShape: [0, 0, 0, 0, 1, 1, 1, 1, 0],
         letter: "S",
         colour: "#00f000",
       },
