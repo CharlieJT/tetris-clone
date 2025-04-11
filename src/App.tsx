@@ -521,7 +521,12 @@ const App = (): JSX.Element => {
         setTapped(true);
         const { offsetCount, checkGameOver, lineCount, newGameArray } =
           topOffsetHandler(position, offsets);
-        if (newGameArray[-1] !== undefined || checkGameOver) {
+        const newInitialPosition = [1 - topOffset - (offsetCount - 1), 5];
+        if (
+          newGameArray[-1] !== undefined ||
+          checkGameOver ||
+          newInitialPosition[0] < 0
+        ) {
           soundPlay(TetrisGameOver);
           const gameOverArray = newGameArray.filter(([elX]) => elX > 1);
           setGameOver(true);
@@ -531,7 +536,6 @@ const App = (): JSX.Element => {
           setGameArray(gameOverArray);
           highScoreHandler();
         } else {
-          const newInitialPosition = [1 - topOffset - (offsetCount - 1), 5];
           setFilterGenerator([]);
           setFlipValue(0);
           setRandomTetromino(nextTetromino);
@@ -905,9 +909,10 @@ const App = (): JSX.Element => {
       const { clientY } = e.touches[0];
       setTimestamp(Date.now());
       setPositionYMoved(clientY);
-      const dt = Date.now() - timestamp;
-      const dy = clientY - positionYMoved;
-      setTouchMoveSpeed(Math.round((dy / dt) * 100));
+      const timeElapsed = Date.now() - timestamp;
+      const swipeDistance = clientY - positionYMoved;
+      const speedOfSwipe = Math.round((swipeDistance / timeElapsed) * 100);
+      setTouchMoveSpeed(speedOfSwipe);
       if (gameActive) {
         const { ArrowLeft, ArrowRight } = KeyboardProps;
         const { offsetLeft, offsetTop, clientWidth, clientHeight } =
@@ -952,7 +957,7 @@ const App = (): JSX.Element => {
             }
           }
         }
-        if (!disableX && Math.round((dy / dt) * 100) < 5) {
+        if (!disableX && speedOfSwipe < 5) {
           setTimestampSetter(Date.now());
           if (touchStartingPosX > touchMovePositionX) {
             setDisableY(true);

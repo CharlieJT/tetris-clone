@@ -14,7 +14,7 @@ export interface Tetrominoes {
 export type ShapeItem = (string | number)[];
 
 export interface TetrominoInfo {
-  intialShape: ShapeItem[];
+  intialShape: number[];
   letter: string;
   colour: string;
 }
